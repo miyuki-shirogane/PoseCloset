@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "posecloset"
+version = "0.1.0"
+description = "PoseCloset - interactive pose + outfit image generation skill with strict asset licensing"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "PoseCloset contributors" }]
+keywords = ["image-generation", "pose", "outfit", "agent", "skill", "mcp"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Graphics",
+]
+dependencies = []
+
+[project.optional-dependencies]
+exif = ["Pillow>=9"]
+
+[project.scripts]
+pose-outfit = "poseoutfit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/miyuki-shirogane/PoseCloset"
+Repository = "https://github.com/miyuki-shirogane/PoseCloset"
+Issues = "https://github.com/miyuki-shirogane/PoseCloset/issues"
+
+[tool.setuptools]
+packages = ["poseoutfit", "poseoutfit.render"]

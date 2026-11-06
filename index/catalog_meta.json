@@ -1,0 +1,56 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-11-06T05:23:15+00:00",
+ "sources": {
+  "poses": {
+   "catalog": "https://github.com/anhao/ai-pose-gallery-zh",
+   "origin": "https://ai-pose-gallery.anhao.app",
+   "upstream": "https://github.com/giaaibusi",
+   "author": "ギア",
+   "license": "upstream-noncommercial",
+   "commercial_use": false,
+   "mirror_allowed": false,
+   "note": "上游说明姿势线稿不得用于商业用途，本索引仅保存编号、名称与公开路径。"
+  },
+  "outfits": {
+   "catalog": "https://ai-costume-gallery.pages.dev/",
+   "origin": "https://ai-costume-gallery.pages.dev",
+   "author": "ギア",
+   "license": "reference-only",
+   "commercial_use": true,
+   "mirror_allowed": false,
+   "note": "允许作为创作参考，禁止再分发、转载或转售图像数据本身。"
+  }
+ },
+ "allowed_categories": {
+  "poses": [
+   "bust",
+   "full"
+  ],
+  "outfits": [
+   "パーティ",
+   "冬",
+   "夏",
+   "春",
+   "秋"
+  ]
+ },
+ "kept": {
+  "poses": 98,
+  "outfits": 1014
+ },
+ "excluded": {
+  "pose_outside_allowlist": 135,
+  "pose_adult": 55,
+  "pose_pair": 0,
+  "pose_unknown_category": 0,
+  "outfit_outside_allowlist": 393,
+  "outfit_adult": 0,
+  "outfit_incomplete": 0
+ },
+ "upstream_counts": {
+  "poses": 288,
+  "pose_views": 1439,
+  "outfits": 1407
+ }
+}

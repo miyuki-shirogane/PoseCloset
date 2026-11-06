@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "pose_outfit_index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "poses", "outfits"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "poses": { "type": "array", "items": { "$ref": "#/definitions/pose" } },
+    "outfits": { "type": "array", "items": { "$ref": "#/definitions/outfit" } }
+  },
+  "definitions": {
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "order"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "order": { "type": "integer" }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "code", "category", "subcategory", "label", "people", "angle",
+        "thumbnail", "ref_image", "control_type", "prompt_snippet", "source",
+        "source_url", "author", "license", "commercial_use", "mirror_allowed", "enabled"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "code": { "type": "string" },
+        "category": {
+          "allOf": [
+            { "$ref": "#/definitions/category" },
+            { "properties": { "id": { "enum": ["full", "bust"] }, "name": { "enum": ["全身单人・标准系", "上半身单人"] } } }
+          ]
+        },
+        "subcategory": { "type": "string" },
+        "label": { "type": "string", "minLength": 1 },
+        "people": { "const": 1 },
+        "angle": { "type": "string" },
+        "thumbnail": { "type": "string", "pattern": "^(thumbs|img)/[A-Za-z0-9_]+\\.(jpg|png)$" },
+        "ref_image": { "type": "string", "pattern": "^(thumbs|img)/[A-Za-z0-9_]+\\.(jpg|png)$" },
+        "control_type": { "const": "lineart" },
+        "prompt_snippet": { "type": "string", "minLength": 1 },
+        "source": { "const": "pose-gallery-anhao" },
+        "source_url": { "type": "string", "pattern": "^https://ai-pose-gallery\\.anhao\\.app/(thumbs|img)/" },
+        "author": { "type": "string", "minLength": 1 },
+        "license": { "const": "upstream-noncommercial" },
+        "commercial_use": { "const": false },
+        "mirror_allowed": { "const": false },
+        "enabled": { "const": true }
+      }
+    },
+    "outfit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "category", "label", "keywords", "thumbnail", "ref_image", "source",
+        "source_url", "author", "license", "commercial_use", "mirror_allowed", "enabled"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z]{3}-\\d{4}$" },
+        "category": {
+          "allOf": [
+            { "$ref": "#/definitions/category" },
+            { "properties": { "id": { "enum": ["春", "夏", "秋", "冬", "パーティ"] } } }
+          ]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "keywords": { "type": "string", "minLength": 1 },
+        "thumbnail": { "type": "string", "pattern": "^(thumbs|img)/[A-Z]{3}-\\d{4}\\.webp$" },
+        "ref_image": { "type": "string", "pattern": "^(thumbs|img)/[A-Z]{3}-\\d{4}\\.webp$" },
+        "source": { "const": "costume-db-01" },
+        "source_url": { "type": "string", "pattern": "^https://ai-costume-gallery\\.pages\\.dev/(thumbs|img)/" },
+        "author": { "type": "string", "minLength": 1 },
+        "license": { "const": "reference-only" },
+        "commercial_use": { "const": true },
+        "mirror_allowed": { "const": false },
+        "enabled": { "const": true }
+      }
+    }
+  }
+}

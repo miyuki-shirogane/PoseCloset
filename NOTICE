@@ -1,0 +1,28 @@
+NOTICE
+
+PoseCloset (source code) is licensed under the MIT License.
+
+This repository does NOT grant any rights to the third-party assets referenced
+by its index or used in the demo gallery, including but not limited to:
+
+- Pose line art: (c) ギア / AI Pose Gallery. Upstream states these assets must
+  not be used commercially. The index stores only identifiers, names and public
+  URLs. One preview image is bundled in docs/gallery/ for non-commercial demo
+  purposes only; remove it before any commercial use or redistribution.
+- Outfit references: (c) ギア / COSTUME-DB-01. Reference use is allowed, but
+  redistribution, reposting or resale of the image data is prohibited. The
+  index stores only identifiers, keywords and public URLs. One preview image is
+  bundled in docs/gallery/ for non-commercial demo purposes only; remove it
+  before any commercial use or redistribution.
+- Demo character sheet: (c) 上善无形 / ZipZipPipe, CC BY-NC-SA 4.0, from
+  TreapGoGo/deepseek-whale-girl. Included in docs/gallery/subject.jpg solely as
+  a non-commercial demo. This is an unofficial community character; this
+  repository is not affiliated with DeepSeek.
+- Demo output: generated from the above; non-commercial demo only.
+
+This project was inspired by https://github.com/wzc520pyfm/gen-ai-pose-image
+(no affiliation).
+
+Commercial deployment requires replacing the pose library with assets you own
+or have licensed (POSE_LIBRARY=own, rebuild the index). See
+licenses/THIRD_PARTY.md for details.
