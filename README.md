@@ -4,7 +4,7 @@
 
 [![GitHub](https://img.shields.io/badge/github-miyuki--shirogane%2FPoseCloset-blue)](https://github.com/miyuki-shirogane/PoseCloset)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
-![Tests](https://img.shields.io/badge/tests-77%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-78%20passed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT%20(code)-green)
 ![Assets](https://img.shields.io/badge/assets-non--commercial-orange)
 
@@ -32,6 +32,7 @@
 - **幂等**：同一会话重复提交只产生一次任务；失败可安全重试。
 - **三张参考图**：主体 / 服装 / 姿势，各司其职；画风默认跟随主体。
 - **比例策略**：主体含身体时比例取自主体，仅脸时取自姿势图。
+- **半身构图**：bust 姿势自动前置姿势图、加 `FRAMING` 裁切约束、过滤下半身/鞋类关键词，并保留服装参考图。
 - **配件清单**：从服装关键词解析帽子、包、眼镜等，prompt 首尾强调，并在结果中返回 `checklist`。
 - **平台中立**：`render/base.py` 定义 `capabilities / submit / poll`，`mock` 可离线跑通全流程。
 - **素材合规**：路径白名单、禁止镜像、商用模式强制禁用非商用姿势库。
@@ -156,6 +157,7 @@ python3 scripts/build_index.py --pose-source a.json --costume-source b.json
 - 服装图只提供版型与长度，不提供人体比例；prompt 明确“不要为了服装改变身体比例”。
 - 画风默认沿用 `subject_style`，`set_spec(style=...)` 可覆盖。
 - 配件（帽子/包/眼镜等）会单独成行并在首尾强调；结果返回 `checklist.accessories` 供核对。
+- 半身姿势（`bust`）：参考顺序为 `pose → subject → outfit`，prompt 增加 `FRAMING: upper-body portrait ...`，负向加入 `full body, legs, feet, lower body`；服装关键词会移除下半身/鞋类，但**服装参考图仍然保留**。
 
 ## 配置
 
@@ -180,7 +182,7 @@ python3 scripts/build_index.py --pose-source a.json --costume-source b.json
 python3 -m unittest discover -s tests -t . -v
 ```
 
-覆盖：状态守卫、批次锁定、换一批与耗尽重开、自定义数量/子类、旧批次选择、不足 5 项、授权闸门、源头排除与防篡改、无运行期开关、请求边界、路径与 SSRF、规格校验、幂等、注入清洗、画风/比例/配件、源站不可达、全链路。
+覆盖：状态守卫、批次锁定、换一批与耗尽重开、自定义数量/子类、旧批次选择、半身 framing、不足 5 项、授权闸门、源头排除与防篡改、无运行期开关、请求边界、路径与 SSRF、规格校验、幂等、注入清洗、画风/比例/配件、源站不可达、全链路。
 
 GitHub Actions 见 `.github/workflows/ci.yml`，在 Python 3.9–3.12 上跑同一套测试。
 
@@ -229,7 +231,7 @@ index/                 构建产物与 schema
 scripts/build_index.py 生成索引（不下载图片）
 docs/gallery/          示例与非商业声明
 licenses/              第三方授权
-tests/                 77 项测试
+tests/                 78 项测试
 ```
 
 ## 致谢

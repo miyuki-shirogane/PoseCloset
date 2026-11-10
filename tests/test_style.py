@@ -73,6 +73,33 @@ class StyleTests(SkillTestCase):
             "INVALID_INPUT",
         )
 
+    def test_bust_pose_puts_pose_first_and_filters_lower_body(self) -> None:
+        image_path = self.tmp / "subject.png"
+        image_path.write_bytes(PNG_1PX)
+        self.pick_pose("bust")
+        self.ok("sample_outfit_options", session_id=self.sid, category_id="春")
+        self.ok("select_outfit", session_id=self.sid, ref=1)
+        self.ok(
+            "receive_subject",
+            session_id=self.sid,
+            image={"path": str(image_path)},
+            scope="full",
+            subject_style="anime",
+        )
+        data = self.ok("set_spec", session_id=self.sid, style="anime")
+        codes = {risk["code"] for risk in data["risks"]}
+        self.assertIn("FRAMING_CONFLICT", codes)
+        self.assertIn("OUTFIT_TRIMMED", codes)
+        run = self.ok("confirm_and_render", session_id=self.sid, confirmed=True)
+        job = self._job(run["run_id"])
+        prompt = job["spec"]["prompt"]
+        self.assertEqual(prompt["reference_order"], ["pose", "subject", "outfit"])
+        self.assertIn("FRAMING: upper-body portrait", prompt["positive"])
+        self.assertIn("upper-body portion", prompt["positive"])
+        self.assertNotIn("skirt", prompt["positive"].lower())
+        self.assertIn("white shirt", prompt["positive"].lower())
+        self.assertIn("full body", prompt["negative"].lower())
+
     def test_photo_style_keeps_outfit_image(self) -> None:
         self._reach_spec()
         self.ok("set_spec", session_id=self.sid, style="photo")

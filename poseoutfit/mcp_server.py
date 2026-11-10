@@ -27,7 +27,7 @@ class McpServer:
                 {
                     "protocolVersion": params.get("protocolVersion") or PROTOCOL_VERSION,
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "pose-outfit", "version": "0.2.0"},
+                    "serverInfo": {"name": "pose-outfit", "version": "0.2.1"},
                 },
             )
         if method == "ping":

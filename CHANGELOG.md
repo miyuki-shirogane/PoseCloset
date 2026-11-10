@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- 半身姿势（bust）：姿势图前置、增加 `FRAMING` 裁切约束、过滤下半身/鞋类关键词、负向加入 `full body/legs/feet/lower body`；服装参考图仍保留。
+- 新增 `FRAMING_CONFLICT` / `OUTFIT_TRIMMED` 风险提示。
+- 78 项测试。
+
 ## 0.2.0
 
 - 支持按姿势子类采样（如「站姿」）与自定义每批数量（默认 5，上限 20）。

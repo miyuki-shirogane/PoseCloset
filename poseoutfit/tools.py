@@ -28,7 +28,7 @@ from .errors import (
     ok,
 )
 from .library import Library
-from .prompt_builder import STYLE_ALIASES, STYLE_BUNDLES, accessory_tokens, build_prompts, normalize_style
+from .prompt_builder import STYLE_ALIASES, STYLE_BUNDLES, accessory_tokens, build_prompts, filter_outfit_keywords, normalize_style
 from .render.base import RenderProvider, get_provider
 from .security import BMP, GIF, JPEG, PNG, TIFF, WEBP, contains_adult, read_subject_image, sanitize_subject_text, sniff_image, strip_exif
 from .session import SessionStore, require_state
@@ -745,6 +745,25 @@ class Skill:
                         "severity": "medium",
                         "message": "该姿势脚部朝后或可能露出鞋底，鞋面与鞋底容易混淆",
                         "hint": "确认时提醒用户；必要时换不含鞋的服装，或改用支持 ControlNet 的渲染器",
+                    }
+                )
+        if pose and outfit and (pose.get("category") or {}).get("id") == "bust":
+            _, dropped = filter_outfit_keywords(str(outfit.get("keywords", "")))
+            risks.append(
+                {
+                    "code": "FRAMING_CONFLICT",
+                    "severity": "info",
+                    "message": "半身姿势配合整身参考图，可能补出下半身；已加裁切约束并过滤下半身关键词",
+                    "hint": "若仍露出腿部，可换上半身主体图，或改用支持 ControlNet 的渲染器",
+                }
+            )
+            if dropped:
+                risks.append(
+                    {
+                        "code": "OUTFIT_TRIMMED",
+                        "severity": "info",
+                        "message": "已从服装描述中移除下半身/鞋类关键词：%s" % ", ".join(dropped),
+                        "hint": "这些单品仍可能在服装参考图中；prompt 已要求只画上半身",
                     }
                 )
         style = normalize_style(spec.get("style"))

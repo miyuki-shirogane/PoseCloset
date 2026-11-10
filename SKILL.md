@@ -39,7 +39,7 @@ python3 -m poseoutfit.cli call <tool_name> '<json_args>'
 7. `select_outfit(ref)` → 锁定服装
 8. `receive_subject(image | image_url | description, scope, subject_style)` → 收主体，至少一项；图片要问清范围与画风并传 `scope`（face/upper/full）和 `subject_style`（anime/photo/3d）
 9. `set_spec(aspect_ratio, size, n, seed, style)` → 确认比例/尺寸/张数/画风（anime / photo / 3d）
-10. 复述完整方案（姿势名称、服装名称、主体摘要、画风、比例、尺寸、张数），并把 `set_spec` 返回的 `risks` 原样告知用户（如 `FOOTWEAR_ORIENTATION`、`STYLE_TRANSFER`），等用户说「确认/可以/生成」
+10. 复述完整方案（姿势名称、服装名称、主体摘要、画风、比例、尺寸、张数），并把 `set_spec` 返回的 `risks` 原样告知用户（如 `FOOTWEAR_ORIENTATION`、`STYLE_TRANSFER`、`FRAMING_CONFLICT`、`OUTFIT_TRIMMED`），等用户说「确认/可以/生成」
 11. `confirm_and_render(confirmed=true)` → 拿 `run_id`
 12. `get_render_status` 轮询：RUNNING 就告诉用户在生成，不要重复提交；COMPLETED 返回图片与署名，并把 `checklist.accessories` 交给用户核对（帽子、包、眼镜等）
 

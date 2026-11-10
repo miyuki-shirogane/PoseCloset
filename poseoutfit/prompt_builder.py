@@ -152,6 +152,38 @@ def accessory_clauses(keywords: str):
     return line, negative
 
 
+LOWER_BODY_TOKENS = {
+    "skirt", "skirts", "pants", "trousers", "jeans", "shorts", "leggings",
+    "tights", "socks", "stockings", "culottes",
+}
+SHOE_TOKENS = {
+    "boots", "boot", "sneakers", "sneaker", "heels", "heel", "pumps", "pump",
+    "sandals", "sandal", "shoes", "shoe", "loafers", "loafer", "flats", "slippers", "slipper",
+}
+DRESS_TOKENS = {"dress", "dresses", "gown", "jumpsuit", "overalls", "romper"}
+
+_LOWER_PATTERN = re.compile(
+    r"\b(%s)\b" % "|".join(sorted(map(re.escape, LOWER_BODY_TOKENS | SHOE_TOKENS), key=len, reverse=True)),
+    re.IGNORECASE,
+)
+
+
+def filter_outfit_keywords(keywords: str) -> tuple:
+    """半身构图时移除下半身/鞋类关键词，保留上衣、外套与连衣裙。"""
+    dropped = []
+
+    def _drop(match):
+        dropped.append(match.group(0))
+        return " "
+
+    filtered = _LOWER_PATTERN.sub(_drop, keywords or "")
+    filtered = re.sub(r"\s+", " ", filtered)
+    filtered = re.sub(r"\s*,\s*", ", ", filtered).strip(" ,")
+    if not filtered:
+        filtered = keywords
+    return filtered, dropped
+
+
 def normalize_style(value: Optional[str]) -> str:
     style = (value or "photo").strip().lower()
     style = STYLE_ALIASES.get(style, style)
@@ -174,21 +206,29 @@ def build_prompts(
     include_outfit = bool(outfit and include_outfit_image)
     scope = subject_scope if subject_scope in ("face", "upper", "full") else "none"
     has_body_subject = has_subject_image and scope in ("upper", "full")
+    framing = "bust" if (pose.get("category") or {}).get("id") == "bust" else "full"
 
-    # 服装图固定放第 2 位，提高配件/版型权重：subject → outfit → pose
-    # 仅脸或无主体图：pose → outfit → subject
-    if has_body_subject:
-        order = ["subject"]
-    elif has_subject_image:
+    # 半身：pose 第 1（构图），subject 第 2（身份），outfit 最后（版型）
+    # 全身：subject → outfit → pose（保持原策略）
+    if framing == "bust":
         order = ["pose"]
+        if has_subject_image:
+            order.append("subject")
+        if include_outfit:
+            order.append("outfit")
     else:
-        order = ["pose"]
-    if include_outfit:
-        order.append("outfit")
-    if "pose" not in order:
-        order.append("pose")
-    if has_subject_image and "subject" not in order:
-        order.append("subject")
+        if has_body_subject:
+            order = ["subject"]
+        elif has_subject_image:
+            order = ["pose"]
+        else:
+            order = ["pose"]
+        if include_outfit:
+            order.append("outfit")
+        if "pose" not in order:
+            order.append("pose")
+        if has_subject_image and "subject" not in order:
+            order.append("subject")
 
     roles = {name: index for index, name in enumerate(order, 1)}
     pose_idx = roles["pose"]
@@ -206,6 +246,10 @@ def build_prompts(
     lines.append(
         "BODY LOCK: the body pose, limb positions and camera framing must match image %d exactly." % pose_idx
     )
+    if framing == "bust":
+        lines.append(
+            "FRAMING: upper-body portrait, crop at the waist; do not show legs, feet, or lower-body clothing."
+        )
     if has_subject_image:
         lines.append(
             "SUBJECT: image %d provides the face and identity only; do not copy its body pose, stance or framing."
@@ -231,17 +275,25 @@ def build_prompts(
         if accessory_line:
             lines.append(accessory_line)
     if outfit:
+        keywords = str(outfit["keywords"]).strip()
+        if framing == "bust":
+            keywords, _ = filter_outfit_keywords(keywords)
         if include_outfit:
             lines.append(
                 "OUTFIT: %s. Use image %d for the garment design and fit; restyle it into the target art style; "
-                "do not copy its photographic texture or lighting." % (str(outfit["keywords"]).strip(), roles["outfit"])
+                "do not copy its photographic texture or lighting." % (keywords, roles["outfit"])
             )
         else:
-            lines.append("OUTFIT: %s (text only; no reference image)" % str(outfit["keywords"]).strip())
-        lines.append(
-            "GARMENT: follow the garment length and silhouette described above; "
-            "do not change the body proportions to fit the garment."
-        )
+            lines.append("OUTFIT: %s (text only; no reference image)" % keywords)
+        if framing == "bust":
+            lines.append(
+                "GARMENT: follow the upper-body portion of the garment; do not extend the frame to show lower-body clothing or feet."
+            )
+        else:
+            lines.append(
+                "GARMENT: follow the garment length and silhouette described above; "
+                "do not change the body proportions to fit the garment."
+            )
     style_line = "STYLE: " + bundle["positive"] + "."
     if has_subject_image:
         style_line += " Match the rendering style of image %d." % roles["subject"]
@@ -271,6 +323,8 @@ def build_prompts(
     negative = BASE_NEGATIVE + ", " + bundle["negative"]
     if has_body_subject:
         negative += ", different body proportions, elongated limbs, oversized head, short legs"
+    if framing == "bust":
+        negative += ", full body, legs, feet, lower body, long shot, wide shot"
     if style == "anime" and include_outfit:
         negative += ", photographic outfit texture, copying the outfit photo's photographic style"
     if accessory_negative:
@@ -284,5 +338,6 @@ def build_prompts(
         "reference_hint": lines[-2],
         "reference_order": order,
         "style": style,
+        "framing": framing,
         "include_outfit_image": include_outfit,
     }
