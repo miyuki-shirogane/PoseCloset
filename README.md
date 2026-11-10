@@ -4,7 +4,7 @@
 
 [![GitHub](https://img.shields.io/badge/github-miyuki--shirogane%2FPoseCloset-blue)](https://github.com/miyuki-shirogane/PoseCloset)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
-![Tests](https://img.shields.io/badge/tests-72%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-77%20passed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT%20(code)-green)
 ![Assets](https://img.shields.io/badge/assets-non--commercial-orange)
 
@@ -27,7 +27,7 @@
 ## 特性
 
 - **索引驱动**：分类、候选、编号全部来自索引；索引里没有的不提供、不联想。
-- **批次锁定**：编号只在当前批次内有效，越界返回 `NOT_IN_BATCH`；换一批不跨分类。
+- **候选可控**：默认每批 5 项，可指定数量（≤20）和姿势子类（如「10 个站姿」）；编号在当前批有效，旧批次的项可用 id 选。
 - **状态机**：`pose_category → pose_option → outfit_category → outfit_option → subject → spec_confirm → rendering → completed/failed`。
 - **幂等**：同一会话重复提交只产生一次任务；失败可安全重试。
 - **三张参考图**：主体 / 服装 / 姿势，各司其职；画风默认跟随主体。
@@ -63,7 +63,7 @@ tools.py ──► session.py (SQLite, TTL, 幂等)
 2. **选模型**：推荐 `qwen-image-3.0`（3 张参考图，正好主体/姿势/服装）；需要更多参考图可用 `wan2.7-image`（最多 9 张）。
 3. **说一句话**：
 
-   > 用 pose-outfit skill，主体用这张图，帮我选一个姿势和夏装，生成一张 3:4 的图。
+   > 用 pose-outfit skill，主体用这张图，给我 10 个站姿、夏装，生成一张 3:4 的图。
 
    主体画风（`anime` / `photo` / `3d`）由用户指定，Skill 不会自动猜；不确定时 agent 应先问。
 
@@ -124,7 +124,7 @@ export POSE_RENDER_POLL_COMMAND='./poll.sh'
 | `start_pose_task` | 新建会话，返回 `session_id` |
 | `get_session_state` | 当前状态、已选项、批次、风险、可用动作 |
 | `get_pose_categories` / `get_outfit_categories` | 有效分类与数量 |
-| `sample_pose_options` / `sample_outfit_options` | 随机取最多 5 项；`reshuffle=true` 换一批 |
+| `sample_pose_options` / `sample_outfit_options` | 默认取 5 项；可传 `subcategory`（姿势）与 `limit`（≤20）；`reshuffle=true` 换一批 |
 | `select_pose` / `select_outfit` | 锁定当前批次内的项 |
 | `receive_subject` | 收人像/URL/文字描述，登记 `scope` 与 `subject_style` |
 | `set_spec` | 比例、尺寸、张数、种子、画风；返回 `risks` |
@@ -167,7 +167,7 @@ python3 scripts/build_index.py --pose-source a.json --costume-source b.json
 | `POSE_STATE_DIR` | `~/.local/state/pose-outfit` | SQLite 与会话文件 |
 | `POSE_INDEX` | `index/pose_outfit_index.json` | 索引路径 |
 | `POSE_SESSION_TTL_HOURS` | `24` | 会话过期 |
-| `POSE_SESSION_MAX_BATCH` | `5` | 每批候选上限（硬上限 5） |
+| `POSE_SESSION_MAX_BATCH` | `5` | 每批候选默认值（上限 20） |
 | `POSE_ASSET_TIMEOUT` | `20` | 取图超时（秒） |
 | `POSE_ASSET_MAX_BYTES` | `12000000` | 素材大小上限 |
 | `POSE_SUBJECT_MAX_BYTES` | `10000000` | 主体图片大小上限 |
@@ -180,7 +180,7 @@ python3 scripts/build_index.py --pose-source a.json --costume-source b.json
 python3 -m unittest discover -s tests -t . -v
 ```
 
-覆盖：状态守卫、批次锁定、换一批与耗尽重开、不足 5 项、授权闸门、源头排除与防篡改、无运行期开关、请求边界、路径与 SSRF、规格校验、幂等、注入清洗、画风/比例/配件、源站不可达、全链路。
+覆盖：状态守卫、批次锁定、换一批与耗尽重开、自定义数量/子类、旧批次选择、不足 5 项、授权闸门、源头排除与防篡改、无运行期开关、请求边界、路径与 SSRF、规格校验、幂等、注入清洗、画风/比例/配件、源站不可达、全链路。
 
 GitHub Actions 见 `.github/workflows/ci.yml`，在 Python 3.9–3.12 上跑同一套测试。
 
@@ -229,7 +229,7 @@ index/                 构建产物与 schema
 scripts/build_index.py 生成索引（不下载图片）
 docs/gallery/          示例与非商业声明
 licenses/              第三方授权
-tests/                 72 项测试
+tests/                 77 项测试
 ```
 
 ## 致谢

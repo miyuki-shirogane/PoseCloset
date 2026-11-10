@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -137,9 +138,18 @@ class Library:
             counts[item["category"]["id"]] = counts.get(item["category"]["id"], 0) + 1
         result = []
         for cid, meta in allowed.items():
-            count = counts.get(cid, 0)
-            if count > 0:
-                result.append({"id": cid, "name": meta["name"], "count": count, "order": meta["order"]})
+            category_items = [item for item in items if item["category"]["id"] == cid]
+            count = len(category_items)
+            if count == 0:
+                continue
+            entry = {"id": cid, "name": meta["name"], "count": count, "order": meta["order"]}
+            if kind == "pose":
+                sub = Counter(item["subcategory"] for item in category_items)
+                entry["subcategories"] = [
+                    {"name": name, "count": value}
+                    for name, value in sorted(sub.items(), key=lambda pair: (-pair[1], pair[0]))
+                ]
+            result.append(entry)
         return sorted(result, key=lambda x: x["order"])
 
     def items(self, kind: str, category_id: str) -> List[dict]:

@@ -6,7 +6,7 @@ from .support import SkillTestCase
 
 
 class BatchTests(SkillTestCase):
-    def test_batch_is_capped_at_five(self) -> None:
+    def test_default_batch_is_five(self) -> None:
         data = self.ok("sample_pose_options", session_id=self.sid, category_id="full")
         self.assertEqual(len(data["items"]), 5)
         self.assertEqual(data["total_in_category"], 7)
@@ -57,20 +57,55 @@ class BatchTests(SkillTestCase):
         self.assertEqual(first["batch_id"], second["batch_id"])
         self.assertEqual([i["pose_id"] for i in first["items"]], [i["pose_id"] for i in second["items"]])
 
-    def test_batch_size_cannot_exceed_five(self) -> None:
+    def test_batch_size_config_caps_at_twenty(self) -> None:
         from poseoutfit.config import Config
-        from poseoutfit.tools import Skill
 
         config = Config(
             index_path=self.config.index_path,
             state_dir=self.tmp / "state2",
             renderer="mock",
-            session_max_batch=9,
+            session_max_batch=99,
         )
-        skill = Skill(config)
-        sid = skill.call("start_pose_task", {})["data"]["session_id"]
-        data = skill.call("sample_pose_options", {"session_id": sid, "category_id": "full"})["data"]
+        self.assertEqual(config.session_max_batch, 20)
+
+    def test_custom_limit(self) -> None:
+        sid = self.ok("start_pose_task")["session_id"]
+        small = self.ok("sample_pose_options", session_id=sid, category_id="full", limit=3)
+        self.assertEqual(len(small["items"]), 3)
+        sid2 = self.ok("start_pose_task")["session_id"]
+        large = self.ok("sample_pose_options", session_id=sid2, category_id="full", limit=10)
+        self.assertEqual(len(large["items"]), 7)
+        self.assertEqual(large["total_in_scope"], 7)
+        self.assertIn("共 7 项", large["notice"] or "")
+
+    def test_limit_validation(self) -> None:
+        self.assertEqual(self.error("sample_pose_options", session_id=self.sid, category_id="full", limit=0), "INVALID_INPUT")
+        self.assertEqual(self.error("sample_pose_options", session_id=self.sid, category_id="full", limit=21), "INVALID_INPUT")
+
+    def test_subcategory_filter(self) -> None:
+        sid = self.ok("start_pose_task")["session_id"]
+        data = self.ok("sample_pose_options", session_id=sid, category_id="full", subcategory="站姿")
         self.assertEqual(len(data["items"]), 5)
+        self.assertTrue(all(item["subcategory"] == "站姿" for item in data["items"]))
+        self.assertEqual(data["total_in_scope"], 7)
+        self.assertEqual(
+            self.error("sample_pose_options", session_id=sid, category_id="full", subcategory="坐姿"),
+            "CATEGORY_EMPTY",
+        )
+
+    def test_subcategories_listed(self) -> None:
+        categories = self.ok("get_pose_categories", session_id=self.sid)["categories"]
+        full = next(item for item in categories if item["id"] == "full")
+        self.assertIn({"name": "站姿", "count": 7}, full["subcategories"])
+
+    def test_select_previous_batch_item(self) -> None:
+        sid = self.ok("start_pose_task")["session_id"]
+        first = self.ok("sample_pose_options", session_id=sid, category_id="full")
+        first_id = first["items"][0]["pose_id"]
+        self.ok("sample_pose_options", session_id=sid, category_id="full", reshuffle=True)
+        selected = self.ok("select_pose", session_id=sid, ref=first_id)
+        self.assertEqual(selected["pose_id"], first_id)
+        self.assertEqual(selected["state"], "outfit_category")
 
     def test_outfit_batch(self) -> None:
         self.pick_pose("full")

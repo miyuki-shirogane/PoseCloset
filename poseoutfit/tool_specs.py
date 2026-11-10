@@ -33,7 +33,7 @@ TOOL_SPECS = [
     {
         "name": "get_pose_categories",
         "description": (
-            "返回当前可用的姿势分类及每类素材数量。分类只能来自本工具的返回，禁止自行编造。"
+            "返回当前可用的姿势分类、每类素材数量与子类数量。分类/子类只能来自本工具的返回，禁止自行编造。"
             "广告/成人向分类不会出现，也不要用其它词替代。"
         ),
         "inputSchema": _schema({"session_id": SESSION}, ["session_id"]),
@@ -41,14 +41,25 @@ TOOL_SPECS = [
     {
         "name": "sample_pose_options",
         "description": (
-            "在指定姿势分类内随机取最多 5 个候选。用户说「换一批」时传 reshuffle=true。"
-            "返回的编号只在本次批次内有效；不得跨分类取样，也不得使用返回列表以外的 id。"
+            "在指定姿势分类内随机取候选，默认 5 个（可用 limit 指定，最多 20）；可按 subcategory 过滤。"
+            "用户说「换一批」时传 reshuffle=true。编号只在本次批次内有效；旧批次的项可用 id 选择。"
         ),
         "inputSchema": _schema(
             {
                 "session_id": SESSION,
                 "category_id": {"type": "string", "description": "get_pose_categories 返回的分类 id"},
                 "reshuffle": {"type": "boolean", "default": False, "description": "true 表示换一批"},
+                "subcategory": {
+                    "type": "string",
+                    "description": "可选，姿势子类（如 站姿/坐姿/趴卧）；先用 get_pose_categories 查看可用子类",
+                },
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "default": 5,
+                    "description": "本批数量，默认 5，最多 20",
+                },
             },
             ["session_id", "category_id"],
         ),
@@ -56,13 +67,13 @@ TOOL_SPECS = [
     {
         "name": "select_pose",
         "description": (
-            "锁定当前批次内的一个姿势。ref 可以是本批编号（1..N）或本批内的 pose_id；"
-            "不在本批时返回 NOT_IN_BATCH，此时应让用户换一批或换分类，禁止全局检索。"
+            "锁定一个姿势。ref 可以是当前批编号（1..N）、当前批的 pose_id，或本会话已展示过的 pose_id；"
+            "未展示过的 id 返回 NOT_IN_BATCH，禁止全局检索。"
         ),
         "inputSchema": _schema(
             {
                 "session_id": SESSION,
-                "ref": {"type": ["integer", "string"], "description": "本批编号或 pose_id"},
+                "ref": {"type": ["integer", "string"], "description": "本批编号、当前批 pose_id，或本会话已展示过的 pose_id"},
             },
             ["session_id", "ref"],
         ),
@@ -75,21 +86,28 @@ TOOL_SPECS = [
     {
         "name": "sample_outfit_options",
         "description": (
-            "在指定服装分类内随机取最多 5 个候选。用户说「换一批」时传 reshuffle=true。"
-            "编号只在本次批次内有效。"
+            "在指定服装分类内随机取候选，默认 5 个（可用 limit 指定，最多 20）。"
+            "用户说「换一批」时传 reshuffle=true。编号只在本次批次内有效；旧批次的项可用 id 选择。"
         ),
         "inputSchema": _schema(
             {
                 "session_id": SESSION,
                 "category_id": {"type": "string"},
                 "reshuffle": {"type": "boolean", "default": False},
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "default": 5,
+                    "description": "本批数量，默认 5，最多 20",
+                },
             },
             ["session_id", "category_id"],
         ),
     },
     {
         "name": "select_outfit",
-        "description": "锁定当前批次内的一套服装。ref 为本批编号或 outfit_id。",
+        "description": "锁定一套服装。ref 可以是当前批编号、当前批的 outfit_id，或本会话已展示过的 outfit_id。",
         "inputSchema": _schema(
             {
                 "session_id": SESSION,

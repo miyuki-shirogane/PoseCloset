@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .assets import AssetResolver, fetch_public_image, resolve_asset_url
-from .config import ASPECT_RATIOS, DEFAULT_SPEC, Config
+from .config import ASPECT_RATIOS, DEFAULT_SPEC, MAX_BATCH_LIMIT, Config
 from .errors import (
     ALREADY_COMPLETED,
     BATCH_EXHAUSTED,
@@ -170,13 +170,40 @@ class Skill:
         self._license_gate(kind)
         return {"categories": self.library.categories(kind)}
 
-    def sample_pose_options(self, session_id: str, category_id: str, reshuffle: bool = False) -> Dict[str, Any]:
-        return self._sample(session_id, "pose", category_id, bool(reshuffle))
+    def sample_pose_options(
+        self,
+        session_id: str,
+        category_id: str,
+        reshuffle: bool = False,
+        subcategory: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        return self._sample(session_id, "pose", category_id, bool(reshuffle), subcategory, limit)
 
-    def sample_outfit_options(self, session_id: str, category_id: str, reshuffle: bool = False) -> Dict[str, Any]:
-        return self._sample(session_id, "outfit", category_id, bool(reshuffle))
+    def sample_outfit_options(
+        self,
+        session_id: str,
+        category_id: str,
+        reshuffle: bool = False,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        return self._sample(session_id, "outfit", category_id, bool(reshuffle), None, limit)
 
-    def _sample(self, session_id: str, kind: str, category_id: str, reshuffle: bool) -> Dict[str, Any]:
+    def _sample(
+        self,
+        session_id: str,
+        kind: str,
+        category_id: str,
+        reshuffle: bool,
+        subcategory: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        explicit_limit = limit
+        if limit is None:
+            limit = self.config.session_max_batch
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1 or limit > MAX_BATCH_LIMIT:
+            raise SkillError(INVALID_INPUT, "limit 必须在 1..%d 之间" % MAX_BATCH_LIMIT)
+        scope = (subcategory or "").strip() or None
         result: Dict[str, Any] = {}
 
         def fn(data: Dict[str, Any]) -> None:
@@ -190,31 +217,54 @@ class Skill:
             items = self.library.items(kind, category_id)
             if not items:
                 raise SkillError(CATEGORY_EMPTY, "该分类暂无素材")
+            if scope:
+                if kind != "pose":
+                    raise SkillError(INVALID_INPUT, "只有姿势支持 subcategory")
+                available = sorted({item.get("subcategory") for item in items if item.get("subcategory")})
+                if scope not in available:
+                    raise SkillError(
+                        CATEGORY_EMPTY,
+                        "该子类暂无素材",
+                        extra={"subcategories": available},
+                    )
+                scope_items = [item for item in items if item.get("subcategory") == scope]
+            else:
+                scope_items = items
+
             batch_key = "pose_batch" if kind == "pose" else "outfit_batch"
             batch = data.get(batch_key)
-            if not reshuffle and batch and batch.get("category_id") == category_id:
-                result.update(self._batch_payload(data, kind, batch, len(items), notice=None))
+            if (
+                not reshuffle
+                and explicit_limit is None
+                and batch
+                and batch.get("category_id") == category_id
+                and batch.get("subcategory") == scope
+            ):
+                result.update(self._batch_payload(data, kind, batch, len(items), notice=None, subcategory=scope,
+                                                 total_in_scope=len(scope_items)))
                 return
 
             seen_map = data["seen"][kind]
             seen = list(seen_map.get(category_id, []))
             seen_set = set(seen)
-            pool = [item for item in items if item["id"] not in seen_set]
+            pool = [item for item in scope_items if item["id"] not in seen_set]
             restarted = False
             if not pool:
                 if not reshuffle:
+                    label = "该子类" if scope else "该分类"
                     raise SkillError(
                         BATCH_EXHAUSTED,
-                        "该分类 %d 项已全部展示" % len(items),
-                        hint="说「换一批」可重新开始该分类",
-                        extra={"total": len(items)},
+                        "%s %d 项已全部展示" % (label, len(scope_items)),
+                        hint="说「换一批」可重新开始",
+                        extra={"total": len(scope_items), "subcategory": scope},
                     )
-                seen_map[category_id] = []
-                seen = []
-                pool = list(items)
+                scope_ids = {item["id"] for item in scope_items}
+                seen = [item_id for item_id in seen if item_id not in scope_ids]
+                seen_map[category_id] = seen
+                pool = list(scope_items)
                 restarted = True
 
-            picked = random.SystemRandom().sample(pool, min(self.config.session_max_batch, len(pool)))
+            picked = random.SystemRandom().sample(pool, min(limit, len(pool)))
             new_ids = [item["id"] for item in picked]
             seen.extend(new_ids)
             seen_map[category_id] = seen
@@ -222,6 +272,8 @@ class Skill:
                 "batch_id": str(uuid.uuid4()),
                 "kind": kind,
                 "category_id": category_id,
+                "subcategory": scope,
+                "limit": limit,
                 "item_ids": new_ids,
                 "index_map": {str(index): item_id for index, item_id in enumerate(new_ids, 1)},
             }
@@ -229,14 +281,15 @@ class Skill:
             data["state"] = "pose_option" if kind == "pose" else "outfit_option"
 
             total = len(items)
-            exhausted = len(seen) >= total
+            scope_total = len(scope_items)
+            exhausted = not [item for item in scope_items if item["id"] not in set(seen)]
             if restarted:
-                notice = "该分类已重新开始一轮"
-            elif len(new_ids) < self.config.session_max_batch or exhausted:
-                notice = "该分类共 %d 项，已全部展示" % total
+                notice = "该子类已重新开始一轮" if scope else "该分类已重新开始一轮"
+            elif len(new_ids) < limit or exhausted:
+                notice = ("该子类共 %d 项，已全部展示" % scope_total) if scope else ("该分类共 %d 项，已全部展示" % total)
             else:
                 notice = None
-            result.update(self._batch_payload(data, kind, batch, total, notice, exhausted))
+            result.update(self._batch_payload(data, kind, batch, total, notice, exhausted, scope, scope_total))
 
         self.store.mutate(session_id, fn)
         return result
@@ -249,6 +302,8 @@ class Skill:
         total: int,
         notice: Optional[str],
         exhausted: bool = False,
+        subcategory: Optional[str] = None,
+        total_in_scope: Optional[int] = None,
     ) -> Dict[str, Any]:
         items: List[Dict[str, Any]] = []
         for index in range(1, len(batch["item_ids"]) + 1):
@@ -279,7 +334,9 @@ class Skill:
         return {
             "batch_id": batch["batch_id"],
             "items": items,
+            "subcategory": subcategory,
             "total_in_category": total,
+            "total_in_scope": total if total_in_scope is None else total_in_scope,
             "exhausted": bool(exhausted),
             "notice": notice,
         }
@@ -297,10 +354,18 @@ class Skill:
             require_state(data, "pose_option" if kind == "pose" else "outfit_option")
             batch = data.get("pose_batch" if kind == "pose" else "outfit_batch")
             item_id = self._resolve_ref(batch, ref)
+            if item_id is None and isinstance(ref, str) and not ref.strip().isdigit():
+                candidate = ref.strip()
+                item = self.library.get(kind, candidate)
+                if item is not None:
+                    shown = set(data["seen"][kind].get(item["category"]["id"], []))
+                    if candidate in shown:
+                        item_id = candidate
             if item_id is None:
                 raise SkillError(
                     NOT_IN_BATCH,
-                    "所选编号不在当前批次",
+                    "所选编号/ID 不在本会话已展示的范围内",
+                    hint="编号只在当前批有效；旧项请用 id",
                     extra={"batch_size": len(batch["item_ids"]) if batch else 0},
                 )
             item = self.library.get(kind, item_id)

@@ -29,6 +29,8 @@ ASSET_ORIGINS = {
 }
 
 ASPECT_RATIOS = ("1:1", "3:4", "4:3", "2:3", "3:2", "9:16", "16:9")
+MAX_BATCH_LIMIT = 20
+
 DEFAULT_SPEC = {
     "aspect_ratio": "3:4",
     "size": "1024x1536",
@@ -64,7 +66,7 @@ class Config:
             object.__setattr__(self, "state_dir", _state_dir())
         object.__setattr__(self, "index_path", Path(self.index_path))
         object.__setattr__(self, "state_dir", Path(self.state_dir))
-        object.__setattr__(self, "session_max_batch", max(1, min(5, int(self.session_max_batch))))
+        object.__setattr__(self, "session_max_batch", max(1, min(MAX_BATCH_LIMIT, int(self.session_max_batch))))
 
     @property
     def commercial(self) -> bool:
